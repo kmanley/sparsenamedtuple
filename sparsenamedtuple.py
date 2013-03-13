@@ -5,7 +5,6 @@ import sys as _sys
 
 __all__ = ['sparsenamedtuple']
 
-
 ################################################################################
 ### sparsenamedtuple
 ################################################################################
@@ -15,38 +14,21 @@ class {typename}(tuple):
     '{typename}({arg_list})'
 
     __slots__ = ()
-
     _fields = {field_names!r}
     _nfields = len(_fields)
 
     def __new__(_cls, **kwargs):
-        #print "__new__:%s" % repr(kwargs) # TODO:
-        #'Create new instance of {typename}({arg_list})'
-        #indexes = []
-        #values = []
-        #for key, value in kwargs.iteritems():
-        #    indexes.append(_cls._fields.index(key))
-        #    values.append(value)
-        #print indexes # TODO: remove
-        #values.append(tuple(indexes))
-        #return _tuple.__new__(_cls, values)
         return _cls._make(**kwargs)
 
     @classmethod
     def _make(_cls, **kwargs):
         'Make a new {typename} object from a sequence or iterable'
-        #result = new(cls, iterable)
-        #if len(result) != {num_fields:d}:
-        #    raise TypeError('Expected {num_fields:d} arguments, got %d' % len(result))
-        #return result
-        #return cls.__new__(**kwargs)
-        #return new(cls, **kwargs)
         indexes = []
         values = []
         for key, value in kwargs.iteritems():
-            indexes.append(_cls._fields.index(key))
-            values.append(value)
-        print indexes # TODO: remove
+            if value != None:
+                indexes.append(_cls._fields.index(key))
+                values.append(value)
         values.append(tuple(indexes))
         return _tuple.__new__(_cls, values)        
 
@@ -56,23 +38,30 @@ class {typename}(tuple):
 
     def _asdict(self):
         'Return a new OrderedDict which maps field names to their values'
-        return OrderedDict((self._fields[x], self[i]) for i, x in enumerate(_tuple.__getitem__(self, -1)))
+        return OrderedDict((self._fields[x], self[x]) for x in range(self._nfields))
+        
+    def _asnamedtuple(self):
+        return tuple(self[x] for x in range(self._nfields))
+        
+    def __eq__(self, other):
+        return self._asnamedtuple() == other
+        
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     __dict__ = property(_asdict)
 
-    def _replace(_self, **kwds):
+    def _replace(_self, **kwargs):
         'Return a new {typename} object replacing specified fields with new values'
-        result = _self._make(map(kwds.pop, {field_names!r}, [_self[x] for x in range(_self._nfields)]))
-        if kwds:
-            raise ValueError('Got unexpected field names: %r' % kwds.keys())
-        return result
+        vars = _self._asdict()
+        vars.update(kwargs)
+        return {typename}._make(**vars)
 
     def __getnewargs__(self):
         'Return self as a plain tuple.  Used by copy and pickle.'
         return tuple(self)
         
     def __getitem__(self, n):
-        print "__getitem__(%s)" % n # TODO:
         if n < 0: 
             n = self._nfields + n
         elif n >= self._nfields:
@@ -96,25 +85,78 @@ _field_template = '''\
 def sparsenamedtuple(typename, field_names, verbose=False, rename=False):
     """Returns a new subclass of tuple with named fields.
 
-    >>> Point = namedtuple('Point', ['x', 'y'])
-    >>> Point.__doc__                   # docstring for the new class
-    'Point(x, y)'
-    >>> p = Point(11, y=22)             # instantiate with positional args or keywords
-    >>> p[0] + p[1]                     # indexable like a plain tuple
-    33
-    >>> x, y = p                        # unpack like a regular tuple
-    >>> x, y
-    (11, 22)
-    >>> p.x + p.y                       # fields also accessable by name
-    33
-    >>> d = p._asdict()                 # convert to a dictionary
-    >>> d['x']
-    11
-    >>> Point(**d)                      # convert from a dictionary
-    Point(x=11, y=22)
-    >>> p._replace(x=100)               # _replace() is like str.replace() but targets named fields
-    Point(x=100, y=22)
+    # sparsenamedtuples are defined similar to namedtuples
+    >>> from collections import namedtuple
+    >>> from sparsenamedtuple import sparsenamedtuple
+    >>> Customer = namedtuple('Customer', 'username first middle last city state zip bday')
+    >>> CustomerS = sparsenamedtuple('Customer', 'username first middle last city state zip bday')
 
+    # __doc__ works the same
+    >>> Customer.__doc__
+    'Customer(username, first, middle, last, city, state, zip, bday)'
+    >>> CustomerS.__doc__
+    'Customer(username, first, middle, last, city, state, zip, bday)'
+
+    # unlike namedtuples, sparsenamedtuples are always created by passing kwargs
+    # Note that we don't pass the names of any None values
+    >>> c1 = Customer('jdoe', None, None, None, None, 'NY', None, None)
+    >>> c2 = CustomerS(username='jdoe', state='NY')
+    
+    # repr looks the same
+    >>> c1
+    Customer(username='jdoe', first=None, middle=None, last=None, city=None, state='NY', zip=None, bday=None)
+    >>> c2
+    Customer(username='jdoe', first=None, middle=None, last=None, city=None, state='NY', zip=None, bday=None)
+    
+    # but the sparsenamedtuple takes up less space in memory
+    >>> import sys
+    >>> sys.getsizeof(c1)
+    56
+    >>> sys.getsizeof(c2)
+    36
+    
+    # _asdict works the same
+    >>> c1._asdict()
+    OrderedDict([('username', 'jdoe'), ('first', None), ('middle', None), ('last', None), ('city', None), ('state', 'NY'), ('zip', None), ('bday', None)])
+    >>> c2._asdict()
+    OrderedDict([('username', 'jdoe'), ('first', None), ('middle', None), ('last', None), ('city', None), ('state', 'NY'), ('zip', None), ('bday', None)])
+    
+    # indexing works the same as with namedtuple
+    >>> c1[0]
+    'jdoe'
+    >>> c2[0]
+    'jdoe'
+    >>> c1[1]
+    >>> c2[1]
+
+    # accessing values by field name works the same as with namedtuple
+    >>> c1.middle
+    >>> c2.middle
+    >>> c1.state
+    'NY'
+    >>> c2.state
+    'NY'
+
+    # here we can see how it works; in sparsenamedtuple the indexes of the specified values are stashed
+    # in the last element of the tuple. For this reason, unfortunately you can't use tuple unpacking
+    # in the same way that you would with a regular namedtuple
+    >>> tuple(c1)
+    ('jdoe', None, None, None, None, 'NY', None, None)
+    >>> tuple(c2)
+    ('jdoe', 'NY', (0, 5))
+    
+    # you can use _asnamedtuple to convert a sparsenamedtuple into its namedtuple equivalent tuple;
+    # this allows tuple unpacking similar to namedtuple
+    >>> c2._asnamedtuple()
+    ('jdoe', None, None, None, None, 'NY', None, None)
+
+    # equality of sparsenamedtuple and namedtuple works...
+    >>> c2 == c1
+    True
+    
+    # but is not symmetrical; you have to specify the sparsenamedtuple as the lvalue
+    >>> c1 == c2
+    False
     """
 
     # Validate the field names.  At the user's option, either generate an error
@@ -188,19 +230,5 @@ def sparsenamedtuple(typename, field_names, verbose=False, rename=False):
     return result
 
 if __name__ == '__main__':
-    Name = sparsenamedtuple("Name", "first middle last age iq", verbose=True)
-    n = Name(middle="thomas", age=40)
-    print tuple(n)
-    print "n[0]", n[0]
-    print "n[1]", n[1]
-    print "n[2]", n[2]
-    print "n[3]", n[3]
-    print "n[4]", n[4]
-    #print "n[5]", n[5]
-    print "n[-1]", n[-1]
-    print "n[-2]", n[-2]
-    print "n.first", n.first
-    print "n.middle", n.middle
-    print "n.last", n.last
-    print "n.age", n.age
-    print "n.iq", n.iq
+    import doctest
+    doctest.testmod(verbose=False)
