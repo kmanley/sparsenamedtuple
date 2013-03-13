@@ -6,9 +6,10 @@ A variant of Python's collections.namedtuple which uses less memory by not stori
 
 Similar to namedtuple: 
 
-    python
-    >>> from sparsenamedtuple import sparsenamedtuple
-    >>> Customer = sparsenamedtuple('Customer', 'username first middle last city state zip bday')
+```python
+>>> from sparsenamedtuple import sparsenamedtuple
+>>> Customer = sparsenamedtuple('Customer', 'username first middle last city state zip bday')
+```
 
 Instances are always created via kwargs, not positional arguments. Only specify the values that are
 not None. 
