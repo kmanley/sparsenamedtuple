@@ -20,8 +20,27 @@ class {typename}(tuple):
     _nfields = len(_fields)
 
     def __new__(_cls, **kwargs):
-        print "__new__:%s" % repr(kwargs) # TODO:
-        'Create new instance of {typename}({arg_list})'
+        #print "__new__:%s" % repr(kwargs) # TODO:
+        #'Create new instance of {typename}({arg_list})'
+        #indexes = []
+        #values = []
+        #for key, value in kwargs.iteritems():
+        #    indexes.append(_cls._fields.index(key))
+        #    values.append(value)
+        #print indexes # TODO: remove
+        #values.append(tuple(indexes))
+        #return _tuple.__new__(_cls, values)
+        return _cls._make(**kwargs)
+
+    @classmethod
+    def _make(_cls, **kwargs):
+        'Make a new {typename} object from a sequence or iterable'
+        #result = new(cls, iterable)
+        #if len(result) != {num_fields:d}:
+        #    raise TypeError('Expected {num_fields:d} arguments, got %d' % len(result))
+        #return result
+        #return cls.__new__(**kwargs)
+        #return new(cls, **kwargs)
         indexes = []
         values = []
         for key, value in kwargs.iteritems():
@@ -29,15 +48,7 @@ class {typename}(tuple):
             values.append(value)
         print indexes # TODO: remove
         values.append(tuple(indexes))
-        return _tuple.__new__(_cls, values)
-
-    @classmethod
-    def _make(cls, iterable, new=tuple.__new__, len=len):
-        'Make a new {typename} object from a sequence or iterable'
-        result = new(cls, iterable)
-        if len(result) != {num_fields:d}:
-            raise TypeError('Expected {num_fields:d} arguments, got %d' % len(result))
-        return result
+        return _tuple.__new__(_cls, values)        
 
     def __repr__(self):
         'Return a nicely formatted representation string'
@@ -45,7 +56,7 @@ class {typename}(tuple):
 
     def _asdict(self):
         'Return a new OrderedDict which maps field names to their values'
-        return OrderedDict(zip(self._fields, self))
+        return OrderedDict((self._fields[x], self[i]) for i, x in enumerate(_tuple.__getitem__(self, -1)))
 
     __dict__ = property(_asdict)
 
