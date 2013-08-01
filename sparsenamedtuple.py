@@ -232,3 +232,4 @@ def sparsenamedtuple(typename, field_names, verbose=False, rename=False):
 if __name__ == '__main__':
     import doctest
     doctest.testmod(verbose=False)
+
